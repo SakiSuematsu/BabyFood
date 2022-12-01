@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>babyfood</title>
+  <style>
+    fieldset {
+      height: 142px;
+    }
+
+    ul {
+      padding: 0;
+    }
+
+    li {
+      list-style: none;
+      display: flex;
+      height: 30px;
+    }
+
+    li>p {
+      width: 100px;
+      margin: 0;
+      font-size: 14px;
+    }
+
+    #wrapper {
+      display: flex;
+    }
+
+    .list_title {
+      border-bottom: solid black 1px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>離乳食在庫管理</h1>
+  <!-- 入力場所を作成しよう -->
+  <div id="wrapper">
+    <div>
+      <form>
+        <fieldset>
+          <legend>ビタミン・ミネラル</legend>
+          <div>
+            食材: <input type="text" id="food_b">
+          </div>
+          <div>
+            冷凍した日: <input type="date" id="frozen_day_b">
+          </div>
+          <div>
+            冷蔵した日: <input type="date" id="cold_day_b">
+          </div>
+          <div>
+            <button type="button" id="save_b">記録する</button>
+          </div>
+        </fieldset>
+      </form>
+      <li class="list_title">
+        <p>食材</p>
+        <p>冷凍した日</p>
+        <p>冷蔵した日</p>
+      </li>
+      <!-- データ出力場所 -->
+      <ul id="output_b"></ul>
+    </div>
+    <div>
+      <form>
+        <fieldset>
+          <legend>エネルギー</legend>
+          <div>
+            食材: <input type="text" id="food_e">
+          </div>
+          <div>
+            冷凍した日: <input type="date" id="frozen_day_e">
+          </div>
+          <div>
+            冷蔵した日: <input type="date" id="cold_day_e">
+          </div>
+          <div>
+            <button type="button" id="save_e">記録する</button>
+          </div>
+        </fieldset>
+      </form>
+      <li class="list_title">
+        <p>食材</p>
+        <p>冷凍した日</p>
+        <p>冷蔵した日</p>
+      </li>
+      <!-- データ出力場所 -->
+      <ul id="output_e"></ul>
+    </div>
+
+    <div>
+      <form>
+        <fieldset>
+          <legend>タンパク質</legend>
+          <div>
+            食材: <input type="text" id="food_p">
+          </div>
+          <div>
+            冷凍した日: <input type="date" id="frozen_day_p">
+          </div>
+          <div>
+            冷蔵した日: <input type="date" id="cold_day_p">
+          </div>
+          <div>
+            <button type="button" id="save_p">記録する</button>
+          </div>
+        </fieldset>
+      </form>
+      <li class="list_title">
+        <p>食材</p>
+        <p>冷凍した日</p>
+        <p>冷蔵した日</p>
+      </li>
+      <!-- データ出力場所 -->
+      <ul id="output_p"></ul>
+    </div>
+    <div>
+      <form>
+        <fieldset>
+          <legend>食べたよ！</legend>
+          <div>
+            食材: <input type="text" id="food">
+          </div>
+          <div>
+            栄養: <select name="nutrient" id="nutrient">
+              <option value="">ひとつ選択</option>
+              <option value="energy">エネルギー</option>
+              <option value="protein">タンパク質</option>
+              <option value="bitamin">ビタミン・ミネラル</option>
+            </select>
+          </div>
+          <div>
+            初めて食べた日: <input type="date" id="first_day">
+          </div>
+          <div>
+            <button type="button" id="save">記録する</button>
+          </div>
+        </fieldset>
+      </form>
+      <li class="list_title">
+        <p>食材</p>
+        <p>栄養</p>
+        <p>初めて食べた日</p>
+      </li>
+      <!-- データ出力場所 -->
+      <ul id="output"></ul>
+    </div>
+  </div>
+
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+  <script>
+    // 日時をいい感じの形式にする関数
+    function convertTimestampToDatetime(timestamp) {
+      const _d = timestamp ? new Date(timestamp * 1000) : new Date();
+      const Y = _d.getFullYear();
+      const m = (_d.getMonth() + 1).toString().padStart(2, '0');
+      const d = _d.getDate().toString().padStart(2, '0');
+      const H = _d.getHours().toString().padStart(2, '0');
+      const i = _d.getMinutes().toString().padStart(2, '0');
+      const s = _d.getSeconds().toString().padStart(2, '0');
+      return `${Y}/${m}/${d} ${H}:${i}:${s}`;
+    }
+  </script>
+  <!-- 以下にfirebaseのコードを貼り付けよう -->
+  <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.14.0/firebase-app.js";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+
+    // 🔽 追加 / `9.2.0`の部分を↑のFirestoreから貼り付けたコードのバージョンに合わせる
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      serverTimestamp,
+      query,
+      orderBy,
+      onSnapshot,
+    } from "https://www.gstatic.com/firebasejs/9.14.0/firebase-firestore.js";
+
+    // Your web app's Firebase configuration
+    const firebaseConfig = {
+      apiKey: "", //扱い注意！！！
+      authDomain: "babyfood-e0cc5.firebaseapp.com",
+      projectId: "babyfood-e0cc5",
+      storageBucket: "babyfood-e0cc5.appspot.com",
+      messagingSenderId: "497819793963",
+      appId: "1:497819793963:web:a6fbf21e43eb60ac14886e"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+
+    const db = getFirestore(app);
+
+    //ビタミン・ミネラルの保存ボタン
+    $('#save_b').on('click', function () {
+      const postData_b = {
+        food_b: $('#food_b').val(),
+        frozen_day_b: $('#frozen_day_b').val(),
+        cold_day_b: $('#cold_day_b').val(),
+        time: serverTimestamp(),
+      };
+      addDoc(collection(db, "food_list_b"), postData_b);
+      $('#food_b').val('');
+      $('#frozen_day_b').val('');
+      $('#cold_day_b').val('');
+    });
+    //エネルギーの保存ボタン
+    $('#save_e').on('click', function () {
+      const postData_e = {
+        food_e: $('#food_e').val(),
+        frozen_day_e: $('#frozen_day_e').val(),
+        cold_day_e: $('#cold_day_e').val(),
+        time: serverTimestamp(),
+      };
+      addDoc(collection(db, "food_list_e"), postData_e);
+      $('#food_e').val('');
+      $('#frozen_day_e').val('');
+      $('#cold_day_e').val('');
+    });
+    //タンパク質の保存ボタン
+    $('#save_p').on('click', function () {
+      const postData_p = {
+        food_p: $('#food_p').val(),
+        frozen_day_p: $('#frozen_day_p').val(),
+        cold_day_p: $('#cold_day_p').val(),
+        time: serverTimestamp(),
+      };
+      addDoc(collection(db, "food_list_p"), postData_p);
+      $('#food_p').val('');
+      $('#frozen_day_p').val('');
+      $('#cold_day_p').val('');
+    });
+    //食べたよ保存ボタン
+    $('#save').on('click', function () {
+      const postData = {
+        food: $('#food').val(),
+        nutrient: $('#nutrient').val(),
+        first_day: $('#first_day').val(),
+        time: serverTimestamp(),
+      };
+      addDoc(collection(db, "food_list"), postData);
+      $('#food').val('');
+    });
+
+    //order by
+    const q_b = query(collection(db, "food_list_b"), orderBy("food_b", "asc"));
+    const q_e = query(collection(db, "food_list_e"), orderBy("food_e", "asc"));
+    const q_p = query(collection(db, "food_list_p"), orderBy("food_p", "asc"));
+    const q = query(collection(db, "food_list"), orderBy("nutrient", "asc"));
+
+
+    // chatapp.html
+    // 前項の`console.log()`下に記述
+
+    //ビタミンの処理 
+    onSnapshot(q_b, (querySnapshot) => {
+      console.log(querySnapshot.docs);
+      const documents_b = [];
+      querySnapshot.docs.forEach(function (doc_b) {
+        const document_b = {
+          id: doc_b.id,
+          data: doc_b.data(),
+        };
+        documents_b.push(document_b);
+      });
+      console.log(documents_b);
+      const htmlElements_b = [];
+      documents_b.forEach(function (document_b) {
+        htmlElements_b.push(`
+    <li id="${document_b.id}">
+      <p>${document_b.data.food_b}</p>
+      <p>${document_b.data.frozen_day_b}</p>
+      <p>${document_b.data.cold_day_b}</p>
+      <button type="button" id="delete_b">削除</button>
+    </li>
+  `);
+      });
+      $("#output_b").html(htmlElements_b);
+    });
+    /////////////////////////ここから工事中/////////////////////////
+    // //ビタミン・ミネラルの削除ボタン 
+    // $('#delete_b').on('click', function () {
+    //   let ref = firebase.database().ref(`babyfood/food_list_b/`);
+    //   console.log(ref);
+    //   let removeDatas_b = {
+    //     id: removeId,
+    //     food_b: removeFood_b,
+    //     frozen_day: removeFrozenday,
+    //     cold_day: removeColdday
+    //   };
+    //   ref.once('value', ss => {
+    //     ss.forEach(function (v) {
+    //       if (v.val().id == removedId) {
+    //         console.log(v.ref.remove());
+    //       };
+    //     });
+    //   });
+    // });
+    /////////////////////////ここまで工事中/////////////////////////
+    //エネルギーの処理 
+    onSnapshot(q_e, (querySnapshot) => {
+      console.log(querySnapshot.docs);
+      const documents_e = [];
+      querySnapshot.docs.forEach(function (doc_e) {
+        const document_e = {
+          id: doc_e.id,
+          data: doc_e.data(),
+        };
+        documents_e.push(document_e);
+      });
+      //console.log(documents_e);
+      const htmlElements_e = [];
+      documents_e.forEach(function (document_e) {
+        htmlElements_e.push(`
+    <li id="${document_e.id}">
+      <p>${document_e.data.food_e}</p>
+      <p>${document_e.data.frozen_day_e}</p>
+      <p>${document_e.data.cold_day_e}</p>
+      <button type="button" id="delete_e">削除</button>
+    </li>
+  `);
+      });
+      $("#output_e").html(htmlElements_e);
+    });
+    //タンパク質の処理 
+    onSnapshot(q_p, (querySnapshot) => {
+      console.log(querySnapshot.docs);
+      const documents_p = [];
+      querySnapshot.docs.forEach(function (doc_p) {
+        const document_p = {
+          id: doc_p.id,
+          data: doc_p.data(),
+        };
+        documents_p.push(document_p);
+      });
+      //console.log(documents_p);
+      const htmlElements_p = [];
+      documents_p.forEach(function (document_p) {
+        htmlElements_p.push(`
+    <li id="${document_p.id}">
+      <p>${document_p.data.food_p}</p>
+      <p>${document_p.data.frozen_day_p}</p>
+      <p>${document_p.data.cold_day_p}</p>
+      <button type="button" id="delete_p">削除</button>
+    </li>
+  `);
+      });
+      $("#output_p").html(htmlElements_p);
+    });
+
+    //食べたよの処理
+    onSnapshot(q, (querySnapshot) => {
+      console.log(querySnapshot.docs);
+      const documents = [];
+      querySnapshot.docs.forEach(function (doc) {
+        const document = {
+          id: doc.id,
+          data: doc.data(),
+        };
+        documents.push(document);
+      });
+      //console.log(documents);
+      const htmlElements = [];
+      documents.forEach(function (document) {
+        htmlElements.push(`
+    <li id="${document.id}">
+      <p>${document.data.food}</p>
+      <p>${document.data.nutrient}</p>
+      <p>${document.data.first_day}</p>
+    </li>
+  `);
+      });
+
+      $("#output").html(htmlElements);
+    });
+
+
+  </script>
+
+</body>
+
+</html>
